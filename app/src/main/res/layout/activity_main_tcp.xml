@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context="com.example.SmartLock3G.test">
+    tools:context="com.example.SmartLock3G.MainActivity">
 
     <LinearLayout
         android:layout_width="match_parent"

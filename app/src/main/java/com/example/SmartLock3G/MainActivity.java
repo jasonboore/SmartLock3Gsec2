@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -23,13 +24,22 @@ import com.baidu.location.BDLocation;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
 import com.example.SmartLock3G.Track.trackAllActivity;
+import com.example.SmartLock3G.tools.gpsinfo;
 import com.example.SmartLock3G.utils.DateUtil;
 import com.example.SmartLock3G.utils.Pref;
 import com.lpoint.tcpsocketlib.TcpClient;
 import com.lpoint.tcpsocketlib.TcpSocketListener;
 
+
+import net.sf.json.JSONArray;
+
+
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
@@ -40,7 +50,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TextView tv_content;
     private EditText ed_send_text, EDIP, EDPORT;
     private String ThisPhoneIP = "";
+    private  List<gpsinfo> gpsdata;
     private Pref sp;
+
     @SuppressLint("HandlerLeak")
     private Handler handler = new Handler() {
         @Override
@@ -58,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     };
     public class MyLocationListener extends BDAbstractLocationListener {
         @Override
-        public void onReceiveLocation(BDLocation location){
+        public void onReceiveLocation(BDLocation location) {
             //此处的BDLocation为定位结果信息类，通过它的各种get方法可获取定位相关的全部结果
             //以下只列举部分获取经纬度相关（常用）的结果信息
             //更多结果信息获取说明，请参照类参考中BDLocation类中的说明
@@ -72,7 +84,55 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             int errorCode = location.getLocType();
             //获取定位类型、定位错误返回码，具体信息可参照类参考中BDLocation类中的说明
-            Log.d("gps","  "+latitude+"   "+longitude+"   "+errorCode);
+            Log.d("gps1", "第一次  " + latitude + "   " + longitude + "   " + errorCode);
+
+            gpsinfo thisgps = new gpsinfo();
+            thisgps.setLatitude(latitude);
+            thisgps.setLongitude(longitude);
+            gpsdata.add(thisgps);
+
+
+//            Map map = new HashMap();
+//            map.put("Latitude", latitude);
+//            map.put("longitude", longitude);
+//            JSONObject jsonObject = new JSONObject(map);
+//            String jsonString = jsonObject.toString();
+
+//            gpsdata.put("time", SystemClock.currentThreadTimeMillis());
+//            gpsdata.put("data",jsonString);
+
+//            String jsonString1 = jsonObject1.toString();
+//
+//            Log.d("gps1", "jsonString1    "+jsonString1);
+
+            if (!gpsdata.isEmpty()) {
+                net.sf.json.JSONArray jsonArray = net.sf.json.JSONArray.fromObject(thisgps);
+                String data1 = jsonArray.toString();
+                Log.d("gps1", "这里的data1    " + data1);
+
+                net.sf.json.JSONArray json = net.sf.json.JSONArray.fromObject(data1);
+
+                if (json.size() > 0) {
+                    for (int i = 0; i < json.size(); i++) {
+                        // 遍历 jsonarray 数组，把每一个对象转成 json 对象
+                        net.sf.json.JSONObject jsonObj = json.getJSONObject(i);
+                        Log.d("gps1", "这里的解析的    " + jsonObj);
+                    }
+                }
+
+//            try {
+//                jsonArray = new JSONArray(jsonString1);
+//                for (int i = 0; i < jsonArray.length(); i++) {
+//                    JSONObject jsonObj = jsonArray.getJSONObject(i);
+////                    double latitude1 = jsonObj.getDouble("latitude");
+////                    double longitude1 = jsonObj.getDouble("longitude");
+//                    String data1= jsonObj.getString("data");
+//                    Log.d("gps1","第二次  "+data1);
+//                }
+//            } catch (JSONException e) {
+//                e.printStackTrace();
+//            }
+            }
         }
     }
     @Override
@@ -82,12 +142,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //声明LocationClient类
         mLocationClient.registerLocationListener(myListener);
         //注册监听函数
+        gpsdata=new ArrayList<gpsinfo>();
+
         setContentView(R.layout.activity_main_tcp);
         InitView();
         ThisPhoneIP = getLocalIpAddress();  //获取本机IP
-
-
-initLocation();
+        initLocation();
     }
 
     private void initLocation() {
