@@ -19,4 +19,28 @@ public class gpsinfo {
 
     double latitude,longitude;
 
+    public float getDirection() {
+        return direction;
+    }
+
+    public void setDirection(float direction) {
+        this.direction = direction;
+    }
+
+    public float getRadius() {
+        return radius;
+    }
+
+    public void setRadius(float radius) {
+        this.radius = radius;
+    }
+
+    float direction,radius;
+
+
+
+
+
+
+
 }

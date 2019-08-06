@@ -47,7 +47,7 @@
                 android:layout_marginStart="10dp"
                 android:layout_marginEnd="10dp"
                 android:layout_marginRight="5dp"
-                android:onClick="push"
+
                 android:text="发送" />
 
             <Button
@@ -70,10 +70,14 @@
                 android:layout_marginStart="10dp"
                 android:layout_marginLeft="10dp"
                 android:layout_marginEnd="10dp"
-                android:onClick="connect"
+
                 android:text="连接" />
         </RelativeLayout>
-
+<Button
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="发送坐标"
+    android:onClick="sendGPS"/>
 
         <TextView
             android:layout_width="match_parent"
