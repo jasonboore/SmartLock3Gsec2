@@ -10,7 +10,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -30,32 +29,26 @@ import com.example.SmartLock3G.utils.Pref;
 import com.lpoint.tcpsocketlib.TcpClient;
 import com.lpoint.tcpsocketlib.TcpSocketListener;
 
-
-
-
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     public LocationClient mLocationClient = null;
-    private MyLocationListener myListener = new MyLocationListener();
-    public Button bt_send, mStart;
+    public Button bt_send, mStart, sendgps;
     TcpClient tcpClient;
+    String thisGpsInfos;
+    Boolean nowsend = false;
+    private MyLocationListener myListener = new MyLocationListener();
     private TextView tv_content;
     private EditText ed_send_text, EDIP, EDPORT;
     private String ThisPhoneIP = "";
-    private  List<gpsinfo> gpsdata;
+    private List<gpsinfo> gpsdata;
     private Pref sp;
-    String thisGpsInfos;
     @SuppressLint("HandlerLeak")
     private Handler handler = new Handler() {
         @Override
@@ -67,76 +60,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 mStart.setText("连接");
             } else if (msg.what == 3) {
                 tcpClient.sendMsg("test");
+            } else if (msg.what == 4) {
+                nowsend = true;
+                sendgps.setText("已开启发送坐标");
+            } else if (msg.what == 5) {
+                nowsend = false;
+                sendgps.setText("已关闭发送坐标");
+                
             }
-
         }
     };
-
-    public void sendGPS(View view) {
-        if (mStart.getText().equals("断开连接")) {
-            gpsdata.clear();
-            tcpClient.sendMsg(thisGpsInfos);
-        } else Toast.makeText(this, "Socket未连接", Toast.LENGTH_SHORT).show();
-    }
-
-    public class MyLocationListener extends BDAbstractLocationListener {
-        @Override
-        public void onReceiveLocation(BDLocation location) {
-            //此处的BDLocation为定位结果信息类，通过它的各种get方法可获取定位相关的全部结果
-            //以下只列举部分获取经纬度相关（常用）的结果信息
-            //更多结果信息获取说明，请参照类参考中BDLocation类中的说明
-
-            double latitude = location.getLatitude();    //获取纬度信息
-            double longitude = location.getLongitude();    //获取经度信息
-            float radius = location.getRadius();    //获取定位精度，默认值为0.0f
-            float direction = location.getDirection();
-
-            String errorCode = location.getCoorType();
-            //获取定位类型、定位错误返回码，具体信息可参照类参考中BDLocation类中的说明
-
-            Log.d("gps1", "第一次  " + latitude + "   " + longitude + "   " + errorCode);
-
-            //封装
-            gpsinfo thisgps = new gpsinfo();
-            thisgps.setLatitude(latitude);
-            thisgps.setLongitude(longitude);
-            thisgps.setRadius(radius);
-            thisgps.setDirection(direction);
-            gpsdata.add(thisgps);
-            JSONArray jsonArray = new JSONArray();
-            JSONObject tmpObj = null;
-            int count = gpsdata.size();
-            for (int i = 0; i < count; i++) {
-                tmpObj = new JSONObject();
-                try {
-                    tmpObj.put("latitude", gpsdata.get(i).getLatitude());
-                    tmpObj.put("longitude", gpsdata.get(i).getLongitude());
-                    tmpObj.put("radius", gpsdata.get(i).getRadius());
-                    tmpObj.put("direction", gpsdata.get(i).getDirection());
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-                jsonArray.put(tmpObj);
-                tmpObj = null;
-            }
-            thisGpsInfos = jsonArray.toString(); // 将JSONArray转换得到String
-            Log.d("gps1", "personInfos    " + thisGpsInfos);
-
-            //遍历解析
-//            JSONArray jsonArray1 = null;
-//            try {
-//                jsonArray1 = new JSONArray(thisGpsInfos);
-//                for (int i = 0; i < jsonArray1.length(); i++) {
-//                    JSONObject jsonObj = jsonArray1.getJSONObject(i);
-//                    Double latitude1 = jsonObj.getDouble("latitude");
-//                    Double longitude1 = jsonObj.getDouble("longitude");
-//                    Log.d("gps2", "第二次  " + latitude1 + "   " + longitude1 );
-//                }
-//            } catch (JSONException e) {
-//                e.printStackTrace();
-//            }
-        }
-        }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -152,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //声明LocationClient类
         mLocationClient.registerLocationListener(myListener);
         //注册监听函数
-        gpsdata=new ArrayList<gpsinfo>();
+        gpsdata = new ArrayList<gpsinfo>();
         ThisPhoneIP = getLocalIpAddress();  //获取本机IP
     }
 
@@ -201,7 +134,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mLocationClient.start();
     }
 
-
     private void InitView() {
         EDIP = (EditText) findViewById(R.id.EDIP);
         EDPORT = (EditText) findViewById(R.id.EDPORT);
@@ -210,6 +142,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         ed_send_text = (EditText) findViewById(R.id.ed_send_text);
         bt_send.setOnClickListener(this);
         mStart = (Button) findViewById(R.id.mStart);
+        sendgps = (Button) findViewById(R.id.sendgps);
         mStart.setOnClickListener(this);
         sp = Pref.getInstance(this);
         EDIP.setText(sp.getHost());
@@ -217,6 +150,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         EDPORT.setText(String.valueOf(sp.getPort()));
 
     }
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -226,6 +160,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             requestPermissions(permissions.toArray(new String[permissions.size()]), 0);
         }
     }
+
     //检查权限
     private boolean isNeedRequestPermissions(List<String> permissions) {
         // 定位精确位置
@@ -241,6 +176,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                 && checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
             permissionsList.add(permission);
+        }
+    }
+
+    public void sendGPS(View view) {
+//        if (mStart.getText().equals("断开连接")) {
+//            gpsdata.clear();
+//            tcpClient.sendMsg(thisGpsInfos);
+//        } else Toast.makeText(this, "Socket未连接", Toast.LENGTH_SHORT).show();
+        if (nowsend) {
+            Message msg = new Message();
+            msg.what = 5;
+            handler.sendMessage(msg);
+        } else {
+            Message msg = new Message();
+            msg.what = 4;
+            handler.sendMessage(msg);
         }
     }
 
@@ -266,8 +217,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     sp.setPort(Integer.parseInt(EDPORT.getText().toString()));
                     mStart.setText("断开连接");
 
-                }
-                else {
+                } else {
                     tcpClient.closeTcpSocket();
                     tv_content.setText("已清空");
                     mStart.setText("连接");
@@ -376,5 +326,58 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void gettrack(View view) {
         Intent intent = new Intent(this, trackAllActivity.class);
         startActivity(intent);
+    }
+
+    public class MyLocationListener extends BDAbstractLocationListener {
+        @Override
+        public void onReceiveLocation(BDLocation location) {
+            //此处的BDLocation为定位结果信息类，通过它的各种get方法可获取定位相关的全部结果
+            //以下只列举部分获取经纬度相关（常用）的结果信息
+            //更多结果信息获取说明，请参照类参考中BDLocation类中的说明
+
+            double latitude = location.getLatitude();    //获取纬度信息
+            double longitude = location.getLongitude();    //获取经度信息
+            float radius = location.getRadius();    //获取定位精度，默认值为0.0f
+            float direction = location.getDirection();
+
+            String errorCode = location.getCoorType();
+            //获取定位类型、定位错误返回码，具体信息可参照类参考中BDLocation类中的说明
+
+            Log.d("gps1", "第一次  " + latitude + "   " + longitude + "   " + errorCode);
+
+            //封装
+            gpsinfo thisgps = new gpsinfo();
+            thisgps.setLatitude(latitude);
+            thisgps.setLongitude(longitude);
+            thisgps.setRadius(radius);
+            thisgps.setDirection(direction);
+            gpsdata.add(thisgps);
+
+            JSONArray jsonArray = new JSONArray();
+            JSONObject tmpObj = null;
+            int count = gpsdata.size();
+            for (int i = 0; i < count; i++) {
+                tmpObj = new JSONObject();
+                try {
+                    tmpObj.put("latitude", gpsdata.get(i).getLatitude());
+                    tmpObj.put("longitude", gpsdata.get(i).getLongitude());
+                    tmpObj.put("radius", gpsdata.get(i).getRadius());
+                    tmpObj.put("direction", gpsdata.get(i).getDirection());
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                jsonArray.put(tmpObj);
+                tmpObj = null;
+            }
+            thisGpsInfos = jsonArray.toString(); // 将JSONArray转换得到String
+            Log.d("gps1", "personInfos    " + thisGpsInfos);
+
+            if (nowsend) {
+                if (mStart.getText().equals("断开连接")) {
+                    gpsdata.clear();
+                    tcpClient.sendMsg(thisGpsInfos);
+                } else Toast.makeText(MainActivity.this, "Socket未连接", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 }

@@ -73,11 +73,20 @@
 
                 android:text="连接" />
         </RelativeLayout>
-<Button
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:text="发送坐标"
-    android:onClick="sendGPS"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:orientation="vertical">
+
+            <Button
+                android:id="@+id/sendgps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="sendGPS"
+                android:text="已关闭发送坐标" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
