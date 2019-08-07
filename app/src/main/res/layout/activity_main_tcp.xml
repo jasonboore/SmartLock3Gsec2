@@ -32,6 +32,17 @@
 
             android:layout_margin="10dp"
             android:hint="写下发送的内容" />
+        <EditText
+            android:id="@+id/WriteValues"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_margin="10dp"
+            android:layout_weight="1"
+            android:background="#0877A6"
+            android:editable="true"
+            android:gravity="left|center"
+            android:maxLength="255"
+            android:hint="Hex Input"/>
 
         <RelativeLayout
             android:layout_width="match_parent"
@@ -73,19 +84,39 @@
 
                 android:text="连接" />
         </RelativeLayout>
-
+        <Button
+            android:id="@+id/sendgps"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="sendGPS"
+            android:text="已关闭发送坐标" />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="10dp"
-            android:orientation="vertical">
+            android:orientation="horizontal">
+
 
             <Button
-                android:id="@+id/sendgps"
-                android:layout_width="wrap_content"
+                android:id="@+id/open_device"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:onClick="sendGPS"
-                android:text="已关闭发送坐标" />
+                android:layout_weight="1"
+                android:text="open" />
+            <Button
+                android:id="@+id/clearButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Clear" />
+            <Button
+                android:id="@+id/WriteButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Write"/>
         </LinearLayout>
 
         <TextView

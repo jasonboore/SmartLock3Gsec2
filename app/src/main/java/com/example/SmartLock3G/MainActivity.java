@@ -2,8 +2,13 @@ package com.example.SmartLock3G;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.usb.UsbManager;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -13,6 +18,7 @@ import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -22,6 +28,7 @@ import com.baidu.location.BDAbstractLocationListener;
 import com.baidu.location.BDLocation;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
+import com.example.SmartLock3G.CH340Ser.MyApp;
 import com.example.SmartLock3G.Track.trackAllActivity;
 import com.example.SmartLock3G.tools.gpsinfo;
 import com.example.SmartLock3G.utils.DateUtil;
@@ -36,6 +43,8 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
+import cn.wch.ch34xuartdriver.CH34xUARTDriver;
+
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     public LocationClient mLocationClient = null;
@@ -49,6 +58,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String ThisPhoneIP = "";
     private List<gpsinfo> gpsdata;
     private Pref sp;
+    private static final String ACTION_USB_PERMISSION = "com.example.SmartLock3G.USB_PERMISSION";
+
+
+    private EditText writeText;
+    private boolean isOpen;
+    private Handler handler1;
+
+    private Button writeButton, openButton, clearButton;
+
+    public byte[] writeBuffer;
+    public byte[] readBuffer;
+
+    /**
+     * 设置参数
+     */
+    private final int BAUDRATE = 9600;//波特率
+
+    private final byte STOPBIT = 1;//停止位
+    private final byte DATABIT = 8;//数据位
+    private final byte PARITY  = 0;//奇偶校验位
+    private final byte FLOW_CONTROL = 0;//停止位
+
     @SuppressLint("HandlerLeak")
     private Handler handler = new Handler() {
         @Override
@@ -78,6 +109,102 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         InitView();
         InitDate();
         initLocation();
+        MyApp.driver = new CH34xUARTDriver(
+                (UsbManager) getSystemService(Context.USB_SERVICE), this,
+                ACTION_USB_PERMISSION);
+        initUI();
+        if (!MyApp.driver.UsbFeatureSupported())// 判断系统是否支持USB HOST
+        {
+            Dialog dialog = new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("提示")
+                    .setMessage("您的手机不支持USB HOST，请更换其他手机再试！")
+                    .setPositiveButton("确认",
+                            new DialogInterface.OnClickListener() {
+
+                                @Override
+                                public void onClick(DialogInterface arg0,
+                                                    int arg1) {
+                                    System.exit(0);
+                                }
+                            }).create();
+            dialog.setCanceledOnTouchOutside(false);
+            dialog.show();
+        }
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);// 保持常亮的屏幕的状态
+        writeBuffer = new byte[512];
+        readBuffer = new byte[512];
+        isOpen = false;
+        writeButton.setEnabled(false);
+
+        //打开流程主要步骤为ResumeUsbList，UartInit
+        openButton.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View arg0) {
+                if (!isOpen) {
+                    if (!MyApp.driver.ResumeUsbList())// ResumeUsbList方法用于枚举CH34X设备以及打开相关设备
+                    {
+                        Toast.makeText(MainActivity.this, "打开设备失败!",
+                                Toast.LENGTH_SHORT).show();
+                        MyApp.driver.CloseDevice();
+                    } else {
+                        if (!MyApp.driver.UartInit()) {//对串口设备进行初始化操作
+                            Toast.makeText(MainActivity.this, "设备初始化失败!",
+                                    Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, "打开" +
+                                            "设备失败!",
+                                    Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        else {
+
+
+                            if (MyApp.driver.SetConfig(BAUDRATE, DATABIT, STOPBIT, PARITY,//配置串口波特率，函数说明可参照编程手册
+                                    FLOW_CONTROL)) {
+                                Toast.makeText(MainActivity.this, "打开设备和串口设置成功!",
+                                        Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(MainActivity.this, "打开设备成功，串口设置失败!",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                            Toast.makeText(MainActivity.this, "打开设备成功!",
+                                    Toast.LENGTH_SHORT).show();
+                            isOpen = true;
+                            openButton.setText("Close");
+                            writeButton.setEnabled(true);
+                            new readThread().start();//开启读线程读取串口接收的数据
+                        }
+                    }
+                } else {
+                    MyApp.driver.CloseDevice();
+                    openButton.setText("Open");
+                    writeButton.setEnabled(false);
+                    isOpen = false;
+                }
+            }
+        });
+
+
+        writeButton.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View arg0) {
+                byte[] to_send = toByteArray(writeText.getText().toString());
+                int retval = MyApp.driver.WriteData(to_send, to_send.length);//写数据，第一个参数为需要发送的字节数组，第二个参数为需要发送的字节长度，返回实际发送的字节长度
+                if (retval < 0)
+                    Toast.makeText(MainActivity.this, "写失败!",
+                            Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        handler1 = new Handler() {
+
+            public void handleMessage(Message msg) {
+
+                tv_content.append((String) msg.obj);
+
+            }
+        };
     }
 
     private void InitDate() {
@@ -150,7 +277,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         EDPORT.setText(String.valueOf(sp.getPort()));
 
     }
+    private void initUI() {
+        writeText = (EditText) findViewById(R.id.WriteValues);
+        writeButton = (Button) findViewById(R.id.WriteButton);
+        openButton = (Button) findViewById(R.id.open_device);
+        clearButton = (Button) findViewById(R.id.clearButton);
+        clearButton.setOnClickListener(new View.OnClickListener() {
 
+            @Override
+            public void onClick(View arg0) {
+                tv_content.setText("");
+            }
+        });
+        return;
+    }
     @Override
     protected void onStart() {
         super.onStart();
@@ -327,7 +467,94 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Intent intent = new Intent(this, trackAllActivity.class);
         startActivity(intent);
     }
+    private class readThread extends Thread {
 
+        public void run() {
+
+            byte[] buffer = new byte[64];
+
+            while (true) {
+                Message msg = Message.obtain();
+                if (!isOpen) {
+                    break;
+                }
+                int length = MyApp.driver.ReadData(buffer, 64);
+                if (length > 0) {
+                    String recv = toHexString(buffer, length);
+                    msg.obj = recv;
+                    handler1.sendMessage(msg);
+                }
+            }
+        }
+    }
+
+    /**
+     * 将byte[]数组转化为String类型
+     * @param arg
+     *            需要转换的byte[]数组
+     * @param length
+     *            需要转换的数组长度
+     * @return 转换后的String队形
+     */
+    private String toHexString(byte[] arg, int length) {
+        String result = new String();
+        if (arg != null) {
+            for (int i = 0; i < length; i++) {
+                result = result
+                        + (Integer.toHexString(
+                        arg[i] < 0 ? arg[i] + 256 : arg[i]).length() == 1 ? "0"
+                        + Integer.toHexString(arg[i] < 0 ? arg[i] + 256
+                        : arg[i])
+                        : Integer.toHexString(arg[i] < 0 ? arg[i] + 256
+                        : arg[i])) + " ";
+            }
+            return result;
+        }
+        return "";
+    }
+
+    /**
+     * 将String转化为byte[]数组
+     * @param arg
+     *            需要转换的String对象
+     * @return 转换后的byte[]数组
+     */
+    private byte[] toByteArray(String arg) {
+        if (arg != null) {
+            /* 1.先去除String中的' '，然后将String转换为char数组 */
+            char[] NewArray = new char[1000];
+            char[] array = arg.toCharArray();
+            int length = 0;
+            for (int i = 0; i < array.length; i++) {
+                if (array[i] != ' ') {
+                    NewArray[length] = array[i];
+                    length++;
+                }
+            }
+            /* 将char数组中的值转成一个实际的十进制数组 */
+            int EvenLength = (length % 2 == 0) ? length : length + 1;
+            if (EvenLength != 0) {
+                int[] data = new int[EvenLength];
+                data[EvenLength - 1] = 0;
+                for (int i = 0; i < length; i++) {
+                    if (NewArray[i] >= '0' && NewArray[i] <= '9') {
+                        data[i] = NewArray[i] - '0';
+                    } else if (NewArray[i] >= 'a' && NewArray[i] <= 'f') {
+                        data[i] = NewArray[i] - 'a' + 10;
+                    } else if (NewArray[i] >= 'A' && NewArray[i] <= 'F') {
+                        data[i] = NewArray[i] - 'A' + 10;
+                    }
+                }
+                /* 将 每个char的值每两个组成一个16进制数据 */
+                byte[] byteArray = new byte[EvenLength / 2];
+                for (int i = 0; i < EvenLength / 2; i++) {
+                    byteArray[i] = (byte) (data[i * 2] * 16 + data[i * 2 + 1]);
+                }
+                return byteArray;
+            }
+        }
+        return new byte[] {};
+    }
     public class MyLocationListener extends BDAbstractLocationListener {
         @Override
         public void onReceiveLocation(BDLocation location) {
